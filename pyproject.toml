@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "commitguard-cli"
-version = "0.1.0"
+version = "0.1.1"
 description = "AI-powered tool to analyze Git commits for bugs and issues"
 readme = "README.md"
 license = "MIT"
@@ -30,6 +30,7 @@ dependencies = [
     "gitpython>=3.1.0",
     "openai>=1.0.0",
     "python-dotenv>=1.0.0",
+    "packaging>=21.0",
 ]
 
 [project.optional-dependencies]

@@ -7,6 +7,7 @@ import click
 
 from .analyzer import analyze_commit, analyze_staged
 from . import __version__
+from .version import check_for_update
 
 
 def get_repo_path(path: str | None) -> Path:
@@ -21,7 +22,18 @@ def get_repo_path(path: str | None) -> Path:
 @click.version_option(version=__version__, prog_name="CommitGuard")
 def main() -> None:
     """AI-powered tool to analyze Git commits for bugs and issues."""
-    pass
+    # Check for updates (silently ignore errors)
+    try:
+        latest = check_for_update()
+        if latest:
+            click.secho(
+                f"Update available: {latest}. Run 'pip install --upgrade commitguard-cli' to update.",
+                fg="yellow",
+                bold=True,
+            )
+            click.echo()
+    except Exception:
+        pass
 
 
 @main.command()

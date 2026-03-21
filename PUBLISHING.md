@@ -21,8 +21,10 @@ python -m commitguard.cli analyze
 To remove old build artifacts and Python cache files:
 
 ```powershell
-# PowerShell
-Remove-Item -Path ".\dist",".\build","*\.egg-info","*__pycache__","*\.pytest_cache","*\.mypy_cache" -Recurse -Force -ErrorAction SilentlyContinue; Get-ChildItem -Path "." -Recurse -Include "*.pyc","*.pyo","*.so","*.o" -Force | Remove-Item -Force
+# PowerShell - Clean all build artifacts
+Get-ChildItem -Path "." -Recurse -Directory -Filter "*.egg-info" -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path "dist","build","__pycache__",".pytest_cache",".mypy_cache" -Recurse -Force -ErrorAction SilentlyContinue
+Get-ChildItem -Path "." -Recurse -Include "*.pyc","*.pyo","*.so","*.o" -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 ```
 
 ```bash
