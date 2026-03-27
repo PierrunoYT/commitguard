@@ -11,7 +11,9 @@ AI-powered CLI that analyzes Git commits for bugs, security issues, and code qua
 - **Multi-model** – Use any model on OpenRouter (GPT-4, Claude, Gemini, etc.)
 - **Chronological batch analysis** – `analyze -n` processes commits oldest to newest
 - **Structured output** – `--format json` for machine-readable CI integrations
+- **Severity filtering** – `--severity` to filter findings, `--fail-on` to control exit codes
 - **CI-friendly exit codes** – exits non-zero when issues are detected
+- **Output to file** – `--output` to save results to a file
 - **Quiet base command** – Update checks run only when a subcommand is invoked
 - **Simple CLI** – One command, clear output
 
@@ -75,6 +77,14 @@ commitguard analyze -m google/gemini-pro
 # JSON output for automation
 commitguard analyze --format json
 commitguard check --format json
+
+# Filter by severity (JSON only)
+commitguard analyze --format json --severity warning
+commitguard analyze --format json --fail-on critical
+
+# Save output to a file
+commitguard analyze --output report.txt
+commitguard analyze --format json -o results.json
 ```
 
 When using `analyze -n`, commits are analyzed in chronological order (oldest to newest).
@@ -87,6 +97,9 @@ When using `analyze -n`, commits are analyzed in chronological order (oldest to 
 | `--api-key KEY` | OpenRouter API key (or `OPENROUTER_API_KEY` env) |
 | `-m, --model MODEL` | Model to use (default: `anthropic/claude-sonnet-4.6` or `OPENROUTER_MODEL` env) |
 | `--format [text|json]` | Output format (default: `text`) |
+| `--severity [info|warning|critical]` | Minimum severity to include in JSON output (default: `info`) |
+| `--fail-on [info|warning|critical]` | Minimum severity that triggers a non-zero exit code, JSON only (default: `warning`) |
+| `-o, --output FILE` | Save output to a file (in addition to stdout) |
 
 ### JSON output schema
 

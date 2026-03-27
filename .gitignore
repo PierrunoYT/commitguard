@@ -44,6 +44,7 @@ env/
 
 # Internal docs (not for distribution)
 PUBLISHING.md
+tasks.md
 
 # Testing / coverage
 .pytest_cache/

@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `--format` option with `text` (default) and `json` for both `analyze` and `check`
   - Added structured JSON response envelope with `format_version`, per-result `summary`, and `findings`
   - Added severity schema in JSON findings: `critical`, `warning`, `info`
+- **Severity filtering**:
+  - Added `--severity` flag to filter JSON findings by minimum severity level (`info`, `warning`, `critical`)
+  - Added `--fail-on` flag to control which minimum severity triggers a non-zero exit code (default: `warning`)
+- **Output to file**:
+  - Added `-o` / `--output` flag to save analysis results to a file (in addition to stdout)
+- **Testing**:
+  - Added 52 unit tests covering `analyzer.py` and `cli.py`
+  - Tests cover edge cases (root commits, truncated diffs, empty diffs), error handling (rate limits, timeouts, API errors), and all CLI flags
+  - Added `pytest` configuration in `pyproject.toml`
 
 ### Changed
 
@@ -25,6 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Documentation**:
   - Updated README examples and option tables to reflect the new default model and model IDs
   - Updated README with JSON usage examples, schema details, and exit-code behavior
+  - Added severity filtering and output-to-file documentation to README
+
+### Fixed
+
+- Removed unused `python-dotenv` from `requirements.txt`
+
+### Internal
+
+- Added `ruff` linter configuration to `pyproject.toml`
 
 ## [0.1.3] - 2026-03-27
 

@@ -18,6 +18,20 @@ from .analyzer import (
 from . import __version__
 from .version import check_for_update
 
+SEVERITY_ORDER = {"info": 0, "warning": 1, "critical": 2}
+
+
+def filter_findings_by_severity(
+    findings: list[dict], min_severity: str
+) -> list[dict]:
+    """Filter findings to only include those at or above *min_severity*."""
+    threshold = SEVERITY_ORDER.get(min_severity, 0)
+    return [
+        f
+        for f in findings
+        if SEVERITY_ORDER.get(f.get("severity", "info"), 0) >= threshold
+    ]
+
 
 def get_repo_path(path: str | None) -> Path:
     """Resolve repository path. Defaults to current directory."""
@@ -85,6 +99,28 @@ def main(ctx: click.Context) -> None:
     show_default=True,
     help="Output format.",
 )
+@click.option(
+    "--severity",
+    type=click.Choice(["info", "warning", "critical"], case_sensitive=False),
+    default="info",
+    show_default=True,
+    help="Minimum severity to include in JSON output.",
+)
+@click.option(
+    "--fail-on",
+    type=click.Choice(["info", "warning", "critical"], case_sensitive=False),
+    default="warning",
+    show_default=True,
+    help="Minimum severity that triggers a non-zero exit code (JSON only).",
+)
+@click.option(
+    "-o",
+    "--output",
+    "output_file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Save output to a file (in addition to stdout).",
+)
 def analyze(
     commit: str,
     repo_path: Path,
@@ -92,6 +128,9 @@ def analyze(
     api_key: str | None,
     model: str,
     output_format: str,
+    severity: str,
+    fail_on: str,
+    output_file: Path | None,
 ) -> None:
     """Analyze one or more commits for bugs and issues."""
     repo = get_repo_path(str(repo_path))
@@ -107,6 +146,7 @@ def analyze(
     had_errors = False
     issues_found = False
     json_results: list[dict] = []
+    text_parts: list[str] = []
     for ref in refs:
         try:
             if output_format == "json":
@@ -120,6 +160,7 @@ def analyze(
                 click.secho(f"Commit: {ref}", fg="cyan", bold=True)
                 click.echo(result)
                 click.echo()
+                text_parts.append(f"Commit: {ref}\n{result}\n")
                 if has_issues_in_text(result):
                     issues_found = True
         except Exception as e:
@@ -128,17 +169,34 @@ def analyze(
     if had_errors:
         raise click.ClickException("One or more commits failed to analyze.")
     if output_format == "json":
-        click.echo(
-            json.dumps(
-                {
-                    "format_version": "1",
-                    "results": json_results,
-                },
-                indent=2,
-            )
+        for entry in json_results:
+            if "findings" in entry:
+                entry["findings"] = filter_findings_by_severity(
+                    entry["findings"], severity
+                )
+        output_text = json.dumps(
+            {
+                "format_version": "1",
+                "results": json_results,
+            },
+            indent=2,
         )
-    if issues_found:
-        raise click.ClickException("Issues found during analysis.")
+        click.echo(output_text)
+        if output_file:
+            output_file.write_text(output_text, encoding="utf-8")
+        fail_threshold = SEVERITY_ORDER[fail_on]
+        has_failing = any(
+            SEVERITY_ORDER.get(f.get("severity", "info"), 0) >= fail_threshold
+            for entry in json_results
+            for f in entry.get("findings", [])
+        )
+        if has_failing:
+            raise click.ClickException("Issues found during analysis.")
+    else:
+        if output_file:
+            output_file.write_text("\n".join(text_parts), encoding="utf-8")
+        if issues_found:
+            raise click.ClickException("Issues found during analysis.")
 
 
 @main.command()
@@ -170,11 +228,36 @@ def analyze(
     show_default=True,
     help="Output format.",
 )
+@click.option(
+    "--severity",
+    type=click.Choice(["info", "warning", "critical"], case_sensitive=False),
+    default="info",
+    show_default=True,
+    help="Minimum severity to include in JSON output.",
+)
+@click.option(
+    "--fail-on",
+    type=click.Choice(["info", "warning", "critical"], case_sensitive=False),
+    default="warning",
+    show_default=True,
+    help="Minimum severity that triggers a non-zero exit code (JSON only).",
+)
+@click.option(
+    "-o",
+    "--output",
+    "output_file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Save output to a file (in addition to stdout).",
+)
 def check(
     repo_path: Path,
     api_key: str | None,
     model: str,
     output_format: str,
+    severity: str,
+    fail_on: str,
+    output_file: Path | None,
 ) -> None:
     """Analyze staged changes (before commit)."""
     repo = get_repo_path(str(repo_path))
@@ -188,28 +271,42 @@ def check(
     try:
         if output_format == "json":
             result = analyze_staged_json(str(repo), api_key=key, model=model)
-            click.echo(
-                json.dumps(
-                    {
-                        "format_version": "1",
-                        "results": [
-                            {
-                                "commit": "staged",
-                                **result,
-                            }
-                        ],
-                    },
-                    indent=2,
+            if "findings" in result:
+                result["findings"] = filter_findings_by_severity(
+                    result["findings"], severity
                 )
+            output_text = json.dumps(
+                {
+                    "format_version": "1",
+                    "results": [
+                        {
+                            "commit": "staged",
+                            **result,
+                        }
+                    ],
+                },
+                indent=2,
             )
-            if result.get("findings"):
+            click.echo(output_text)
+            if output_file:
+                output_file.write_text(output_text, encoding="utf-8")
+            fail_threshold = SEVERITY_ORDER[fail_on]
+            has_failing = any(
+                SEVERITY_ORDER.get(f.get("severity", "info"), 0) >= fail_threshold
+                for f in result.get("findings", [])
+            )
+            if has_failing:
                 raise click.ClickException("Issues found in staged changes.")
             return
 
         result = analyze_staged(str(repo), api_key=key, model=model)
         click.echo(result)
+        if output_file:
+            output_file.write_text(result, encoding="utf-8")
         if has_issues_in_text(result) and result != "No staged changes to analyze.":
             raise click.ClickException("Issues found in staged changes.")
+    except click.ClickException:
+        raise
     except Exception as e:
         raise click.ClickException(str(e))
 
