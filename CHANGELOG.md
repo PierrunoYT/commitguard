@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-03-27
+
+### Changed
+
+- **Error handling clarity**:
+  - Added explicit handling for OpenRouter rate limits, timeouts, and API errors with user-facing `AnalysisError` messages
+- **Package imports**:
+  - Moved `AnalysisError` to a lightweight `commitguard.errors` module to avoid importing analyzer dependencies when importing `commitguard`
+- **Dependencies**:
+  - Removed unused `python-dotenv` dependency
+
 ## [0.1.2] - 2026-03-27
 
 ### Changed

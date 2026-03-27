@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from git import Repo
-from openai import OpenAI
+from openai import OpenAI, APIError, RateLimitError, APITimeoutError
+from .errors import AnalysisError
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 MAX_DIFF_CHARS = 12000
+
 
 SYSTEM_PROMPT = """You are a code review assistant. Analyze Git commits for:
 1. Potential bugs and logic errors
@@ -41,28 +43,46 @@ def _get_diff(repo: Repo, commit) -> tuple[str, bool]:
     return diff[:MAX_DIFF_CHARS], truncated
 
 
-def _call_ai(diff: str, message: str, files: list[str], api_key: str, model: str, truncated: bool = False) -> str:
+def _call_ai(
+    diff: str,
+    message: str,
+    files: list[str],
+    api_key: str,
+    model: str,
+    truncated: bool = False,
+) -> str:
     """Call OpenRouter API for analysis (supports multiple models)."""
     client = _get_client(api_key)
-    truncation_note = "\n\n*Note: The diff was truncated due to size.*" if truncated else ""
+    truncation_note = (
+        "\n\n*Note: The diff was truncated due to size.*" if truncated else ""
+    )
     user_content = f"""Analyze this commit:
 
 **Message:** {message}
-**Files:** {', '.join(files) if files else 'N/A'}
+**Files:** {", ".join(files) if files else "N/A"}
 
 **Diff:**
 ```
-{diff or '(no diff)'}
+{diff or "(no diff)"}
 ```{truncation_note}
 """
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_content},
-        ],
-    )
-    return response.choices[0].message.content or "No response."
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+        )
+        return response.choices[0].message.content or "No response."
+    except RateLimitError as e:
+        raise AnalysisError(
+            f"Rate limit exceeded. Please wait and retry. Details: {e}"
+        ) from e
+    except APITimeoutError as e:
+        raise AnalysisError(f"Request timed out. Please try again. Details: {e}") from e
+    except APIError as e:
+        raise AnalysisError(f"API error occurred: {e}") from e
 
 
 def analyze_commit(
@@ -87,7 +107,12 @@ def analyze_commit(
             path = diff_item.b_path or diff_item.a_path
             if path:
                 files.append(path)
-    return _call_ai(diff, commit.message, files, api_key, model, truncated)
+    message = (
+        commit.message.decode("utf-8")
+        if isinstance(commit.message, bytes)
+        else commit.message
+    )
+    return _call_ai(diff, message, files, api_key, model, truncated)
 
 
 def analyze_staged(

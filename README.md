@@ -99,6 +99,7 @@ See [OpenRouter models](https://openrouter.ai/models) for the full list.
 | Invalid or missing API key | Set `OPENROUTER_API_KEY` or use `--api-key`. Get a key at [openrouter.ai/keys](https://openrouter.ai/keys) |
 | Model not found | Use the full model ID (e.g. `openai/gpt-4o-mini`). Check [openrouter.ai/models](https://openrouter.ai/models) |
 | Rate limit exceeded | Wait and retry, or switch to a different model |
+| Request timed out | Retry the command, or use a faster/smaller model |
 | Service unavailable | OpenRouter may be down; try again later |
 
 **Security:** Never commit your API key. Use environment variables or `--api-key` at runtime.
